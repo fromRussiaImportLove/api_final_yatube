@@ -1,9 +1,9 @@
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, serializers, viewsets
+from rest_framework import filters, viewsets, mixins
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
-from api.models import Follow, Group, Post, User
+from api.models import Follow, Group, Post
 from api.permissions import IsOwnerOrReadOnly
 from api.serializers import (CommentSerializer, FollowSerializer,
                              GroupSerializer, PostSerializer)
@@ -26,21 +26,30 @@ class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
 
     def get_queryset(self):
-        post = get_object_or_404(Post, id=self.kwargs['post_id'])
+        post = get_object_or_404(Post, id=self.kwargs.get('post_id'))
         return post.comments.all()
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        post = get_object_or_404(Post, id=self.kwargs.get('post_id'))
+        serializer.save(author=self.request.user, post=post)
 
 
-class GroupViewSet(viewsets.ModelViewSet):
+class GroupViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
 
 
-class FollowViewSet(viewsets.ModelViewSet):
+class FollowViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     queryset = Follow.objects.all()
@@ -49,9 +58,4 @@ class FollowViewSet(viewsets.ModelViewSet):
     search_fields = ['=user__username', '=following__username']
 
     def perform_create(self, serializer):
-        username = self.request.POST['following']
-        following = get_object_or_404(User, username=username)
-        user = get_object_or_404(User, username=self.request.user.username)
-        if user.follower.filter(following=following):
-            raise serializers.ValidationError('This following is exist.')
-        serializer.save(user=self.request.user, following=following)
+        serializer.save(user=self.request.user)
