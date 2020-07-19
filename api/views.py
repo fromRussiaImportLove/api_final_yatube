@@ -22,7 +22,7 @@ class PostViewSet(viewsets.ModelViewSet):
 
 
 class CommentViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsAuthenticatedOrReadOnly,)
+    permission_classes = (IsOwnerOrReadOnly, IsAuthenticatedOrReadOnly,)
     serializer_class = CommentSerializer
 
     def get_queryset(self):
